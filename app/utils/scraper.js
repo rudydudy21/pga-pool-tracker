@@ -1,24 +1,29 @@
 // pga-pool-tracker/app/utils/scraper.js
 
 // --- 1. PGA TOUR STATUS SCRAPER ---
-// This function fetches general tournament status.
 export async function getTourStatus() {
     try {
-        // Using a reliable public schedule page
-        const response = await fetch('https://www.pgatour.com/schedule'); 
-        const html = await response.text();
+        // Fetching the JSON data directly from a known endpoint is safer than scraping HTML
+        // This public endpoint provides a clean list of PGA Tour events.
+        const response = await fetch('https://www.pgatour.com/data/Tours/T02'); 
+        const json = await response.json();
 
-        // Simple string manipulation to find the first upcoming event (a robust method
-        // requires complex library, but this handles most simple cases for now)
-        const upcomingMatch = html.match(/TournamentName.*?>(.*?)<\/span>.*?<div class="date-range-desktop">(.*?)<\/div>/s);
+        const currentYear = new Date().getFullYear();
+        const events = json.tours[0].trns.filter(t => t.start.startsWith(currentYear));
         
-        if (upcomingMatch && upcomingMatch.length >= 3) {
-            const name = upcomingMatch[1].trim();
-            const date = upcomingMatch[2].trim();
-            return `⛳ Upcoming Event: ${name}, ${date}`;
+        // Find the first upcoming or currently running event
+        const now = new Date();
+        const upcomingEvent = events.find(event => new Date(event.end) >= now);
+
+        if (upcomingEvent) {
+             const startDate = new Date(upcomingEvent.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+             const endDate = new Date(upcomingEvent.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+             const status = new Date(upcomingEvent.start) <= now ? "Live Now" : "Starts";
+             
+             return `⛳ ${status}: ${upcomingEvent.TName}, ${startDate} - ${endDate}`;
         }
         
-        return "⛳ PGA Tour Status: Data feed updating. Check back soon!";
+        return "⛳ PGA Tour Status: Season Complete or Schedule Pending.";
 
     } catch (error) {
         console.error("Error fetching tour status:", error);
@@ -30,24 +35,28 @@ export async function getTourStatus() {
 // --- 2. GOLFER ODDS SCRAPER ---
 // This function fetches odds from the public golfodds.com page.
 export async function getGolferOdds() {
+    // Check if it's Mon-Wed to display odds (1=Mon, 2=Tue, 3=Wed)
+    const dayOfWeek = new Date().getDay();
+    if (dayOfWeek < 1 || dayOfWeek > 3) {
+         return null; 
+    }
+    
     try {
-        // Check if it's Mon-Wed to display odds (0=Sun, 1=Mon, 2=Tue, 3=Wed)
-        const dayOfWeek = new Date().getDay();
-        if (dayOfWeek > 3 || dayOfWeek === 0) {
-             return null; // Don't display odds if it's Thursday through Sunday
-        }
-
         const response = await fetch('http://golfodds.com/weekly-odds.html');
         const html = await response.text();
 
-        // The odds data is very clean text. We'll find the section 'ODDS to Win:'
-        const start = html.indexOf('ODDS to Win:');
-        if (start === -1) return null;
+        // Safe method to isolate the required text section.
+        const startMarker = 'ODDS to Win:';
+        const endMarker = 'Tour Links';
         
-        // Find the end of the odds list (usually before the next section)
-        const end = html.indexOf('Field (all others)');
-        const oddsText = html.substring(start + 12, end !== -1 ? end : undefined);
+        const start = html.indexOf(startMarker);
+        const end = html.indexOf(endMarker, start);
 
+        if (start === -1 || end === -1) return null;
+        
+        const oddsText = html.substring(start + startMarker.length, end);
+        
+        // Process text into player/odds pairs
         const lines = oddsText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         
         const oddsList = [];
@@ -63,7 +72,8 @@ export async function getGolferOdds() {
         return oddsList;
 
     } catch (error) {
+        // On error, simply return null so the app doesn't crash
         console.error("Error fetching golfer odds:", error);
-        return null;
+        return null; 
     }
 }
