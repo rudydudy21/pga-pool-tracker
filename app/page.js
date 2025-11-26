@@ -1,0 +1,134 @@
+// pga-pool-tracker/app/page.js
+// NOTE: This code uses the data-processor.js file you created and Papa Parse.
+
+import { processPoolData } from './utils/data-processor';
+
+// --- HELPER FUNCTION: Format currency for display (e.g., $10,500,000)
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+// --- LEADERBOARD COMPONENT (Displays the data in a table)
+const LeaderboardTable = ({ data, type, maxWinnings }) => {
+  const isTeam = type === 'team';
+
+  return (
+    <div className="bg-gray-800 p-4 rounded-lg shadow-xl">
+      <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">
+        {isTeam ? '🥇 Season Team Leaderboard' : '🏌️ Player Performance Leaderboard'}
+      </h2>
+      <table className="min-w-full divide-y divide-gray-700">
+        <thead>
+          <tr className="text-gray-400 uppercase text-xs">
+            <th className="px-3 py-2 text-left">Rank</th>
+            <th className="px-3 py-2 text-left">{isTeam ? 'Owner (Team)' : 'Player/Slot'}</th>
+            <th className="px-3 py-2 text-right">Winnings</th>
+            {!isTeam && <th className="px-3 py-2 text-left hidden sm:table-cell">Owner</th>}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-700">
+          {data.map((item, index) => {
+            const rank = index + 1;
+            const winnings = isTeam ? item.winnings : item.winnings;
+            const barWidth = isTeam ? item.winnings_pct * 100 : (winnings / maxWinnings) * 100;
+            const rankColor = rank === 1 ? 'text-yellow-400' : rank === 2 ? 'text-slate-300' : rank === 3 ? 'text-amber-600' : 'text-white';
+            const bgColor = isTeam ? 'bg-indigo-600' : 'bg-green-600';
+
+            return (
+              <tr key={index} className="hover:bg-gray-700">
+                <td className={`px-3 py-2 whitespace-nowrap text-lg font-extrabold ${rankColor}`}>{rank}</td>
+                <td className="px-3 py-2 whitespace-nowrap font-medium text-white">
+                  {isTeam ? item.owner : item.player}
+                  {/* Visual Bar - Only for Team Leaderboard for impact */}
+                  {isTeam && (
+                    <div className="mt-1 h-2 bg-gray-600 rounded-full">
+                      <div 
+                        className={`h-2 rounded-full ${bgColor}`} 
+                        style={{ width: `${barWidth}%` }}
+                        aria-label={`Progress: ${Math.round(barWidth)}%`}
+                      ></div>
+                    </div>
+                  )}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-right font-mono text-lg text-green-400">
+                  {formatCurrency(winnings)}
+                </td>
+                {!isTeam && (
+                  <td className="px-3 py-2 whitespace-nowrap text-gray-400 hidden sm:table-cell">
+                    {item.owner}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+
+// --- MAIN PAGE COMPONENT (Runs the data fetching)
+export default async function Home() {
+  // --- Next.js Server-Side Data Fetching ---
+  // This function runs on the server before the page is sent to the user,
+  // making the data fast and secure.
+  const data = await processPoolData();
+  
+  // Find the highest winnings for the bar chart scaling
+  const maxTeamWinnings = data.teamLeaderboard.length > 0 ? data.teamLeaderboard[0].winnings : 1;
+  const maxPlayerWinnings = data.playerLeaderboard.length > 0 ? data.playerLeaderboard[0].winnings : 1;
+  
+  // We will integrate the Odds and Schedule data here later.
+  const tourStatus = "✅ Next.js Setup Complete! Building the full app..."; 
+  
+  return (
+    <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
+      
+      {/* --- STATUS BANNER (Future Home of PGA Tour Status) --- */}
+      <div className="bg-blue-600 p-3 rounded-lg text-center font-semibold mb-8 shadow-lg">
+        {tourStatus}
+      </div>
+
+      {/* --- HEADER --- */}
+      <header className="mb-10 text-center">
+        <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500">
+          PGA Pool Tracker 🏆
+        </h1>
+        <p className="text-gray-400 mt-2">
+          Tracking {data.teamLeaderboard.length} Owners across {formatCurrency(data.totalPoolWinnings)} in winnings.
+        </p>
+      </header>
+
+      {/* --- LEADERBOARD GRIDS --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
+        
+        {/* Team Leaderboard (Left/Top) */}
+        <LeaderboardTable 
+          data={data.teamLeaderboard} 
+          type="team" 
+          maxWinnings={maxTeamWinnings} 
+        />
+        
+        {/* Player Leaderboard (Right/Bottom) */}
+        <LeaderboardTable 
+          data={data.playerLeaderboard} 
+          type="player" 
+          maxWinnings={maxPlayerWinnings} 
+        />
+
+      </div>
+
+      {/* --- ODDS SECTION (Future Home of Mon-Wed Odds) --- */}
+      <div className="max-w-7xl mx-auto mt-8 p-4 bg-gray-800 rounded-lg text-center shadow-xl">
+        <p className="text-gray-400">💰 Winnings Odds and Charting will appear here soon!</p>
+        <p className="text-xs text-gray-500 mt-1">Last Updated: {data.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString() : 'N/A'}</p>
+      </div>
+    </main>
+  );
+}
