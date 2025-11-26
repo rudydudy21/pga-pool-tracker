@@ -1,7 +1,8 @@
 // pga-pool-tracker/app/page.js
-// NOTE: This code uses the data-processor.js file you created and Papa Parse.
+// Final integration of all four features: Leaderboards, Status, and Odds.
 
 import { processPoolData } from './utils/data-processor';
+import { getTourStatus, getGolferOdds } from './utils/scraper';
 
 // --- HELPER FUNCTION: Format currency for display (e.g., $10,500,000)
 const formatCurrency = (amount) => {
@@ -14,6 +15,7 @@ const formatCurrency = (amount) => {
 };
 
 // --- LEADERBOARD COMPONENT (Displays the data in a table)
+// (This component is unchanged from the last step)
 const LeaderboardTable = ({ data, type, maxWinnings }) => {
   const isTeam = type === 'team';
 
@@ -34,7 +36,7 @@ const LeaderboardTable = ({ data, type, maxWinnings }) => {
         <tbody className="divide-y divide-gray-700">
           {data.map((item, index) => {
             const rank = index + 1;
-            const winnings = isTeam ? item.winnings : item.winnings;
+            const winnings = item.winnings;
             const barWidth = isTeam ? item.winnings_pct * 100 : (winnings / maxWinnings) * 100;
             const rankColor = rank === 1 ? 'text-yellow-400' : rank === 2 ? 'text-slate-300' : rank === 3 ? 'text-amber-600' : 'text-white';
             const bgColor = isTeam ? 'bg-indigo-600' : 'bg-green-600';
@@ -73,24 +75,53 @@ const LeaderboardTable = ({ data, type, maxWinnings }) => {
 };
 
 
+// --- ODDS DISPLAY COMPONENT ---
+const OddsDisplay = ({ odds, playerLeaderboard }) => {
+    if (!odds || odds.length === 0) return null;
+
+    // Filter odds to only show players who are currently in the user's pool (Keepers or OAD slots)
+    const poolPlayerNames = playerLeaderboard.map(p => p.player);
+    const filteredOdds = odds.filter(odd => poolPlayerNames.includes(odd.player));
+
+    if (filteredOdds.length === 0) return null;
+
+    return (
+        <div className="mt-8 max-w-7xl mx-auto">
+            <h3 className="text-2xl font-bold text-yellow-400 mb-4 border-b border-gray-700 pb-2">
+                💰 Winnings Odds for Selected Players
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                {filteredOdds.slice(0, 18).map((odd, index) => ( // Display top 18 relevant odds
+                    <div key={index} className="bg-gray-700 p-3 rounded-lg text-center shadow-md">
+                        <p className="font-semibold text-white">{odd.player}</p>
+                        <p className="text-lg font-mono text-red-400">{odd.odds}</p>
+                    </div>
+                ))}
+            </div>
+            <p className="text-sm text-gray-500 mt-4 text-center">Odds shown are typically updated Mon-Wed and provided by GolfOdds.com.</p>
+        </div>
+    );
+};
+
+
 // --- MAIN PAGE COMPONENT (Runs the data fetching)
 export default async function Home() {
   // --- Next.js Server-Side Data Fetching ---
-  // This function runs on the server before the page is sent to the user,
-  // making the data fast and secure.
-  const data = await processPoolData();
-  
+  // Run all three data processes concurrently for speed!
+  const [data, tourStatus, golferOdds] = await Promise.all([
+    processPoolData(),
+    getTourStatus(),
+    getGolferOdds(),
+  ]);
+
   // Find the highest winnings for the bar chart scaling
   const maxTeamWinnings = data.teamLeaderboard.length > 0 ? data.teamLeaderboard[0].winnings : 1;
   const maxPlayerWinnings = data.playerLeaderboard.length > 0 ? data.playerLeaderboard[0].winnings : 1;
   
-  // We will integrate the Odds and Schedule data here later.
-  const tourStatus = "✅ Next.js Setup Complete! Building the full app..."; 
-  
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       
-      {/* --- STATUS BANNER (Future Home of PGA Tour Status) --- */}
+      {/* --- STATUS BANNER (PGA Tour Status) --- */}
       <div className="bg-blue-600 p-3 rounded-lg text-center font-semibold mb-8 shadow-lg">
         {tourStatus}
       </div>
@@ -124,10 +155,11 @@ export default async function Home() {
 
       </div>
 
-      {/* --- ODDS SECTION (Future Home of Mon-Wed Odds) --- */}
-      <div className="max-w-7xl mx-auto mt-8 p-4 bg-gray-800 rounded-lg text-center shadow-xl">
-        <p className="text-gray-400">💰 Winnings Odds and Charting will appear here soon!</p>
-        <p className="text-xs text-gray-500 mt-1">Last Updated: {data.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString() : 'N/A'}</p>
+      {/* --- ODDS SECTION --- */}
+      <OddsDisplay odds={golferOdds} playerLeaderboard={data.playerLeaderboard} />
+
+      <div className="max-w-7xl mx-auto mt-8 p-4 text-center">
+        <p className="text-xs text-gray-500">Last Data Pull: {new Date().toLocaleTimeString()} (Data is updated with every page load)</p>
       </div>
     </main>
   );
