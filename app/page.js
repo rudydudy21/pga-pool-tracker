@@ -103,16 +103,96 @@ const OddsDisplay = ({ odds, playerLeaderboard }) => {
     );
 };
 
+// pga-pool-tracker/app/page.js (Add this component before the Home function)
+
+// --- LIVE LEADERBOARD DISPLAY COMPONENT ---
+const LiveLeaderboardDisplay = ({ liveData, poolPlayers }) => {
+    if (!liveData.tournamentName || liveData.players.length === 0) {
+        // Display status message if no data is available
+        return (
+            <div className="bg-gray-800 p-4 rounded-lg text-center my-8 shadow-xl">
+                <p className="text-lg text-gray-400">
+                    {liveData.status === "Error fetching live tournament data." 
+                        ? liveData.status 
+                        : "Tournament Leaderboard will appear here when an event is live."}
+                </p>
+            </div>
+        );
+    }
+
+    // 1. Create a simple array of all player names in the pool (Owners/Keepers/OADs)
+    const poolPlayerNames = poolPlayers.map(p => p.player.toUpperCase());
+    
+    // 2. Filter the live leaderboard to include only players in the pool
+    // Note: We need a robust check, as names like "TYLER OAD" won't match "Scottie Scheffler".
+    // For now, we rely on the owner to update the OAD slot name in the CSV to match the player's name.
+    const filteredLeaderboard = liveData.players.filter(livePlayer => {
+        // Use a simple partial match for robustness
+        return poolPlayerNames.some(poolName => 
+            livePlayer.name.toUpperCase().includes(poolName) || 
+            poolName.includes(livePlayer.name.toUpperCase())
+        );
+    });
+
+    if (filteredLeaderboard.length === 0) {
+        return (
+            <div className="bg-gray-800 p-4 rounded-lg text-center my-8 shadow-xl">
+                <p className="text-lg text-gray-400">
+                    {liveData.tournamentName} is {liveData.status}. None of your players are active yet.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-7xl mx-auto my-8">
+            <h2 className="text-3xl font-extrabold text-white mb-2">
+                🏆 Live Tournament: {liveData.tournamentName}
+            </h2>
+            <p className="text-lg text-gray-400 mb-4">
+                Status: <span className="font-semibold text-green-400">{liveData.status}</span> 
+                (Updates with every page load)
+            </p>
+            
+            <div className="bg-gray-800 p-4 rounded-lg shadow-xl">
+                <table className="min-w-full divide-y divide-gray-700">
+                    <thead>
+                        <tr className="text-gray-400 uppercase text-xs">
+                            <th className="px-3 py-2 text-left">Pos</th>
+                            <th className="px-3 py-2 text-left">Player</th>
+                            <th className="px-3 py-2 text-center hidden sm:table-cell">Score</th>
+                            <th className="px-3 py-2 text-right">Money</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                        {filteredLeaderboard.map((player, index) => (
+                            <tr key={index} className="hover:bg-gray-700">
+                                <td className="px-3 py-2 whitespace-nowrap text-lg font-bold text-yellow-400">{player.position}</td>
+                                <td className="px-3 py-2 whitespace-nowrap font-medium text-white">{player.name}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-center hidden sm:table-cell">{player.score}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-right font-mono text-lg text-green-400">
+                                    {formatCurrency(player.money)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
 
 // --- MAIN PAGE COMPONENT (Runs the data fetching)
 export default async function Home() {
   // --- Next.js Server-Side Data Fetching ---
-  // Run all three data processes concurrently for speed!
-  const [data, tourStatus, golferOdds] = await Promise.all([
+
+// Run all four data processes concurrently for speed!
+const [data, tourStatus, golferOdds, liveLeaderboardData] = await Promise.all([ // <--- ADD liveLeaderboardData HERE
     processPoolData(),
     getTourStatus(),
     getGolferOdds(),
-  ]);
+    getTournamentLeaderboard(), // <--- ADD NEW FUNCTION HERE
+]);
 
   // Find the highest winnings for the bar chart scaling
   const maxTeamWinnings = data.teamLeaderboard.length > 0 ? data.teamLeaderboard[0].winnings : 1;
@@ -124,6 +204,22 @@ export default async function Home() {
       {/* --- STATUS BANNER (PGA Tour Status) --- */}
       <div className="bg-blue-600 p-3 rounded-lg text-center font-semibold mb-8 shadow-lg">
         {tourStatus}
+      </div>
+
+{/* --- HEADER --- */}
+      <header className="mb-10 text-center">
+        {/* ... existing header code ... */}
+      </header>
+
+      {/* --- NEW LIVE TOURNAMENT LEADERBOARD --- */}
+      <LiveLeaderboardDisplay 
+        liveData={liveLeaderboardData} 
+        poolPlayers={data.playerLeaderboard} 
+      />
+
+      {/* --- LEADERBOARD GRIDS --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
+        {/* ... existing LeaderboardTable components ... */}
       </div>
 
       {/* --- HEADER --- */}

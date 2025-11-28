@@ -84,4 +84,56 @@ export async function getGolferOdds() {
         console.error("Error fetching golfer odds:", error);
         return null; 
     }
+    // pga-pool-tracker/app/utils/scraper.js (New getTournamentLeaderboard function)
+
+// --- 3. LIVE TOURNAMENT LEADERBOARD SCRAPER ---
+export async function getTournamentLeaderboard() {
+    try {
+        // Using the most stable, direct leaderboard data source known to developers
+        const response = await fetch('https://lbdata.pgatour.com/leaderboard/full.json', {
+            // Crucial cache control to ensure we get fresh data
+            cache: 'no-store' 
+        }); 
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const json = await response.json();
+
+        // Check for required data
+        if (!json.leaderboard || !json.leaderboard.players) {
+            return { 
+                tournamentName: json.tournament?.tournamentName || null, 
+                players: [], 
+                status: json.leaderboard?.roundState || "Data unavailable." 
+            };
+        }
+
+        const tournamentName = json.tournament.tournamentName;
+        const tournamentStatus = json.leaderboard.roundState;
+
+        // Extract key player data: Name, Position, Score, Money
+        const livePlayers = json.leaderboard.players.map(p => ({
+            name: `${p.firstName} ${p.lastName}`,
+            position: p.currentPosition,
+            score: p.totalScore, 
+            money: p.rankings?.money || 0 
+        }));
+
+        return {
+            tournamentName,
+            status: tournamentStatus,
+            players: livePlayers
+        };
+
+    } catch (error) {
+        console.error("Error fetching live leaderboard:", error);
+        return { 
+            tournamentName: null, 
+            players: [], 
+            status: "Error fetching live tournament data. (Trying new source...)" 
+        };
+    }
 }
+        };
