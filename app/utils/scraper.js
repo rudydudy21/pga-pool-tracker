@@ -1,33 +1,41 @@
-// pga-pool-tracker/app/utils/scraper.js
+// pga-pool-tracker/app/utils/scraper.js (New getTourStatus function)
 
 // --- 1. PGA TOUR STATUS SCRAPER ---
 export async function getTourStatus() {
     try {
-        // Fetching the JSON data directly from a known endpoint is safer than scraping HTML
-        // This public endpoint provides a clean list of PGA Tour events.
-        const response = await fetch('https://www.pgatour.com/data/Tours/T02'); 
-        const json = await response.json();
-
-        const currentYear = new Date().getFullYear();
-        const events = json.tours[0].trns.filter(t => t.start.startsWith(currentYear));
+        // Switching to a reliable endpoint known to work well with Vercel/Next.js
+        const response = await fetch('https://www.pgatour.com/data/current/schedule.json', { 
+            // Crucial cache control to ensure we get fresh data
+            cache: 'no-store' 
+        }); 
         
-        // Find the first upcoming or currently running event
-        const now = new Date();
-        const upcomingEvent = events.find(event => new Date(event.end) >= now);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-        if (upcomingEvent) {
-             const startDate = new Date(upcomingEvent.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-             const endDate = new Date(upcomingEvent.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-             const status = new Date(upcomingEvent.start) <= now ? "Live Now" : "Starts";
+        const json = await response.json();
+        
+        // The structure requires filtering the schedule to find the next event
+        const now = new Date().getTime();
+        
+        // Flatten all events and find the next one chronologically
+        const nextEvent = json.schedule.flatMap(s => s.events)
+            .find(event => new Date(event.startDate).getTime() >= now);
+
+        if (nextEvent) {
+             const startDate = new Date(nextEvent.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+             const endDate = new Date(nextEvent.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+             const status = new Date(nextEvent.startDate).getTime() <= now ? "Live Now" : "Starts";
              
-             return `⛳ ${status}: ${upcomingEvent.TName}, ${startDate} - ${endDate}`;
+             return `⛳ ${status}: ${nextEvent.tournamentName}, ${startDate} - ${endDate}`;
         }
         
         return "⛳ PGA Tour Status: Season Complete or Schedule Pending.";
 
     } catch (error) {
         console.error("Error fetching tour status:", error);
-        return "⛳ PGA Tour Status: Could not connect to schedule source.";
+        // Return a benign error message for the user
+        return "⛳ PGA Tour Status: Error connecting to schedule source.";
     }
 }
 

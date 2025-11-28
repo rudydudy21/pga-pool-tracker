@@ -38,7 +38,7 @@ export async function processPoolData() {
         const playerTotals = {};
         let totalPoolWinnings = 0;
         
-        // 3. Process each raw data entry
+       // 3. Process each raw data entry
         rawData.forEach(entry => {
             const winnings = entry.WINNINGS;
             
@@ -49,16 +49,33 @@ export async function processPoolData() {
             const owner = entry.OWNER;
             const player = entry.PLAYER;
 
-            // A. Calculate Owner Totals (Team Leaderboard)
-            // Keeper Winnings and OAD Slot Winnings are all summed under the Owner's name.
+            // --- FILTER: Check if this is an old, bracketed OAD pick
+            // If the player name starts with [ or ends with ], we skip it for Player Totals.
+            const isOldOAD = player.startsWith('[') || player.endsWith(']');
+
+            // A. Calculate Owner Totals (Team Leaderboard) - FIXED FOR 8 ENTRIES
+            // All winnings, including active OAD slots, roll up to the Owner.
             ownerTotals[owner] = (ownerTotals[owner] || 0) + winnings;
 
-            // B. Calculate Player Totals (Golfer Performance Leaderboard)
-            // Each unique player/slot is its own entry (e.g., 'TYLER OAD' is one entry)
-            playerTotals[player] = {
-                winnings: (playerTotals[player]?.winnings || 0) + winnings,
-                owner: owner
-            };
+            // B. Calculate Player Totals (Golfer Performance Leaderboard) - FIXED TO REMOVE OLD OAD PICKS
+            // Only aggregate if it is NOT an old, bracketed OAD pick
+            if (!isOldOAD) {
+                playerTotals[player] = {
+                    winnings: (playerTotals[player]?.winnings || 0) + winnings,
+                    owner: owner
+                };
+            }
+        });
+        }
+        
+        ownerTotals[ownerKey] = (ownerTotals[ownerKey] || 0) + winnings;
+
+        // B. Calculate Player Totals (Golfer Performance Leaderboard)
+        // This is kept the same, ensuring TYLER OAD remains a separate entry here.
+        playerTotals[player] = {
+            winnings: (playerTotals[player]?.winnings || 0) + winnings,
+            owner: owner
+        };
         });
 
         // 4. Transform accumulated objects into sorted arrays for display
