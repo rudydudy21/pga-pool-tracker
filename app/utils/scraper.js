@@ -1,5 +1,5 @@
-// pga-pool-tracker/app/utils/scraper.js (New getTourStatus function)
 'use strict';
+// pga-pool-tracker/app/utils/scraper.js (New getTourStatus function)
 // --- 1. PGA TOUR STATUS SCRAPER ---
 export async function getTourStatus() {
     try {

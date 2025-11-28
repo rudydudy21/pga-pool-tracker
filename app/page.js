@@ -1,8 +1,13 @@
 // pga-pool-tracker/app/page.js
+
+// Force Next.js to render this page dynamically at request time
+export const dynamic = 'force-dynamic'; 
+
+import { processPoolData } from './utils/data-processor';
 // Final integration of all four features: Leaderboards, Status, and Odds.
 
 import { processPoolData } from './utils/data-processor';
-import { getTourStatus, getGolferOdds } from './utils/scraper';
+import { getTourStatus, getGolferOdds, getTournamentLeaderboard } from './utils/scraper';
 
 // --- HELPER FUNCTION: Format currency for display (e.g., $10,500,000)
 const formatCurrency = (amount) => {
