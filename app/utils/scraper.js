@@ -42,7 +42,7 @@ export async function getTourStatus() {
 
 // --- 2. GOLFER ODDS SCRAPER ---
 // This function fetches odds from the public golfodds.com page.
-export async function getGolferOdds() {
+export async function getGolferOdds()
     // Check if it's Mon-Wed to display odds (1=Mon, 2=Tue, 3=Wed)
     const dayOfWeek = new Date().getDay();
     if (dayOfWeek < 1 || dayOfWeek > 3) {
@@ -87,7 +87,7 @@ export async function getGolferOdds() {
     // pga-pool-tracker/app/utils/scraper.js (New getTournamentLeaderboard function)
 
 // --- 3. LIVE TOURNAMENT LEADERBOARD SCRAPER ---
-export async function getTournamentLeaderboard() {
+    export async function getTournamentLeaderboard() {
     try {
         // Using the most stable, direct leaderboard data source known to developers
         const response = await fetch('https://lbdata.pgatour.com/leaderboard/full.json', {
@@ -135,5 +135,4 @@ export async function getTournamentLeaderboard() {
             status: "Error fetching live tournament data. (Trying new source...)" 
         };
     }
-}
-        };
+};
