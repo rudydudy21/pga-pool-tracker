@@ -38,7 +38,7 @@ export async function processPoolData() {
         const playerTotals = {};
         let totalPoolWinnings = 0;
         
-       // 3. Process each raw data entry
+        // 3. Process each raw data entry
         rawData.forEach(entry => {
             const winnings = entry.WINNINGS;
             
@@ -50,7 +50,6 @@ export async function processPoolData() {
             const player = entry.PLAYER;
 
             // --- FILTER: Check if this is an old, bracketed OAD pick
-            // If the player name starts with [ or ends with ], we skip it for Player Totals.
             const isOldOAD = player.startsWith('[') || player.endsWith(']');
 
             // A. Calculate Owner Totals (Team Leaderboard) - FIXED FOR 8 ENTRIES
@@ -65,19 +64,8 @@ export async function processPoolData() {
                     owner: owner
                 };
             }
-        });
-        }
-        
-        ownerTotals[ownerKey] = (ownerTotals[ownerKey] || 0) + winnings;
-
-        // B. Calculate Player Totals (Golfer Performance Leaderboard)
-        // This is kept the same, ensuring TYLER OAD remains a separate entry here.
-        playerTotals[player] = {
-            winnings: (playerTotals[player]?.winnings || 0) + winnings,
-            owner: owner
-        };
-        });
-
+        }); // <--- The loop closes cleanly here.
+        // The rest of the function (step 4, 5) continues below the loop... 
         // 4. Transform accumulated objects into sorted arrays for display
 
         // --- Team Leaderboard ---
