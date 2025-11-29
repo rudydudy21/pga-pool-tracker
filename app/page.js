@@ -172,12 +172,15 @@ const LiveLeaderboardDisplay = ({ liveData, poolPlayers }) => {
     // Note: We need a robust check, as names like "TYLER OAD" won't match "Scottie Scheffler".
     // For now, we rely on the owner to update the OAD slot name in the CSV to match the player's name.
     const filteredLeaderboard = liveData.players.filter(livePlayer => {
-        // Use a simple partial match for robustness
-        return poolPlayerNames.some(poolName => 
-            livePlayer.name.toUpperCase().includes(poolName) || 
-            poolName.includes(livePlayer.name.toUpperCase())
-        );
-    });
+    // Add safety checks for player name existence
+    const livePlayerName = livePlayer.name ? livePlayer.name.toUpperCase() : '';
+    
+    return poolPlayerNames.some(poolName => 
+        // Ensure poolName and livePlayerName are non-empty strings before using includes
+        (livePlayerName && livePlayerName.includes(poolName)) || 
+        (poolName && poolName.includes(livePlayerName))
+    );
+});
 
     if (filteredLeaderboard.length === 0) {
         return (
