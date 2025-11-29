@@ -3,6 +3,27 @@
 // NOTE: This function requires the 'papaparse' library, which we will install next.
 import Papa from 'papaparse';
 
+// pga-pool-tracker/app/utils/data-processor.js (near the top)
+
+const OWNER_COLORS = {
+    // Team Name: Tailwind Color Class (text- and border-)
+    "TYLER": "text-blue-400 border-blue-400",
+    "CAM": "text-green-400 border-green-400",
+    "JON": "text-red-400 border-red-400",
+    "SCOTT": "text-yellow-400 border-yellow-400",
+    "RYAN": "text-indigo-400 border-indigo-400",
+    "DREW": "text-pink-400 border-pink-400",
+    "ROSS": "text-cyan-400 border-cyan-400",
+    "PETE": "text-purple-400 border-purple-400",
+    // Default color for safety
+    "DEFAULT": "text-gray-400 border-gray-400",
+};
+
+export function getOwnerColor(ownerName) {
+    const key = ownerName.toUpperCase();
+    return OWNER_COLORS[key] || OWNER_COLORS["DEFAULT"];
+}
+
 // Your public Google Sheet CSV link
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQRtmSFzVsj_BXPJacbEZuRNGb6YVM0Y4xJrD0zpPecznFWc1SILPo4zfobFcPehMGd-ZVo-XA9nALT/pub?gid=1729998417&single=true&output=csv';
 

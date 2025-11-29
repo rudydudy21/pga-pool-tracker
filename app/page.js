@@ -3,7 +3,7 @@
 // Force Next.js to render this page dynamically at request time
 export const dynamic = 'force-dynamic'; 
 
-import { processPoolData } from './utils/data-processor';
+import { processPoolData, getOwnerColor } from './utils/data-processor';
 // Final integration of all four features: Leaderboards, Status, and Odds.
 import { getTourStatus, getGolferOdds, getTournamentLeaderboard } from './utils/scraper';
 
@@ -19,62 +19,101 @@ const formatCurrency = (amount) => {
 
 // --- LEADERBOARD COMPONENT (Displays the data in a table)
 // (This component is unchanged from the last step)
-const LeaderboardTable = ({ data, type, maxWinnings }) => {
-  const isTeam = type === 'team';
+// pga-pool-tracker/app/page.js
 
-  return (
-    <div className="bg-gray-800 p-4 rounded-lg shadow-xl">
-      <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">
-        {isTeam ? '🥇 Season Team Leaderboard' : '🏌️ Player Performance Leaderboard'}
-      </h2>
-      <table className="min-w-full divide-y divide-gray-700">
-        <thead>
-          <tr className="text-gray-400 uppercase text-xs">
-            <th className="px-3 py-2 text-left">Rank</th>
-            <th className="px-3 py-2 text-left">{isTeam ? 'Owner (Team)' : 'Player/Slot'}</th>
-            <th className="px-3 py-2 text-right">Winnings</th>
-            {!isTeam && <th className="px-3 py-2 text-left hidden sm:table-cell">Owner</th>}
-          </tr>
+// Make sure getOwnerColor is imported at the top of the file!
+// import { processPoolData, getOwnerColor } from './utils/data-processor'; 
+
+const LeaderboardTable = ({ title, leaderboardData, showOwners = true }) => {
+    // 1. Find the maximum winnings (Base for 100% width)
+    const maxWinnings = leaderboardData.length > 0 ? leaderboardData[0].winnings : 0;
+    
+    // 2. Calculate the square root of the max winnings for non-linear scaling
+    const maxRoot = Math.sqrt(maxWinnings);
+
+    // Helper function to render table headers based on the leaderboard type
+    const TableHeaders = ({ isTeam }) => (
+        <thead className="text-gray-400 uppercase text-sm border-b border-gray-700">
+            <tr>
+                <th className="px-6 py-3 text-left w-12">Rank</th>
+                <th className="px-6 py-3 text-left w-1/3">{isTeam ? 'Team' : 'Player/Slot'}</th>
+                {isTeam ? null : <th className="px-6 py-3 text-left w-1/4">Owner</th>}
+                <th className="px-6 py-3 text-right">Winnings</th>
+            </tr>
         </thead>
-        <tbody className="divide-y divide-gray-700">
-          {data.map((item, index) => {
-            const rank = index + 1;
-            const winnings = item.winnings;
-            const barWidth = isTeam ? item.winnings_pct * 100 : (winnings / maxWinnings) * 100;
-            const rankColor = rank === 1 ? 'text-yellow-400' : rank === 2 ? 'text-slate-300' : rank === 3 ? 'text-amber-600' : 'text-white';
-            const bgColor = isTeam ? 'bg-indigo-600' : 'bg-green-600';
+    );
 
-            return (
-              <tr key={index} className="hover:bg-gray-700">
-                <td className={`px-3 py-2 whitespace-nowrap text-lg font-extrabold ${rankColor}`}>{rank}</td>
-                <td className="px-3 py-2 whitespace-nowrap font-medium text-white">
-                  {isTeam ? item.owner : item.player}
-                  {/* Visual Bar - Only for Team Leaderboard for impact */}
-                  {isTeam && (
-                    <div className="mt-1 h-2 bg-gray-600 rounded-full">
-                      <div 
-                        className={`h-2 rounded-full ${bgColor}`} 
-                        style={{ width: `${barWidth}%` }}
-                        aria-label={`Progress: ${Math.round(barWidth)}%`}
-                      ></div>
-                    </div>
-                  )}
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-right font-mono text-lg text-green-400">
-                  {formatCurrency(winnings)}
-                </td>
-                {!isTeam && (
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-400 hidden sm:table-cell">
-                    {item.owner}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
+    // Determine if this is the Team Leaderboard
+    const isTeamLeaderboard = title.includes("Team");
+    
+    return (
+        <div className="bg-gray-800 p-4 rounded-lg shadow-xl h-full flex flex-col">
+            <h2 className="text-3xl font-extrabold text-white mb-4">
+                {title}
+            </h2>
+
+            <div className="flex-grow overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                    <TableHeaders isTeam={isTeamLeaderboard} />
+                    
+                    <tbody className="divide-y divide-gray-700">
+                        {leaderboardData.map((entry, index) => {
+                            // --- NEW SCALING LOGIC ---
+                            let barWidth = 0;
+                            if (maxRoot > 0) {
+                                // Calculate the width percentage based on the square roots
+                                const entryRoot = Math.sqrt(entry.winnings);
+                                barWidth = (entryRoot / maxRoot) * 100;
+                            }
+                            // -------------------------
+
+                            // Determine the owner for color lookup
+                            const ownerForColor = entry.owner || entry.name;
+                            const ownerColorClass = getOwnerColor(ownerForColor);
+
+                            return (
+                                <tr 
+                                    key={entry.name} 
+                                    className={`hover:bg-gray-700 border-l-4 ${ownerColorClass}`} // 👈 Color Border
+                                >
+                                    <td className="px-6 py-4 whitespace-nowrap text-xl font-bold">
+                                        {index + 1}
+                                    </td>
+                                    
+                                    <td className="px-6 py-4 whitespace-nowrap text-xl font-bold">
+                                        {/* Apply Text Color to the Team/Player Name */}
+                                        <span className={`${ownerColorClass}`}>{entry.name}</span> 
+                                    </td>
+
+                                    {/* Owner Column (Only for Player Performance) */}
+                                    {isTeamLeaderboard ? null : (
+                                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-400">
+                                            {entry.owner}
+                                        </td>
+                                    )}
+
+                                    {/* Winnings Column with Bar */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                        <div className="relative h-6 flex items-center">
+                                            {/* Applied the scaled width */}
+                                            <div 
+                                                className="absolute top-0 left-0 h-full bg-green-700 opacity-60 rounded-sm" 
+                                                style={{ width: `${barWidth.toFixed(2)}%` }} 
+                                            />
+                                            {/* Winnings text overlay */}
+                                            <span className="relative z-10 w-full font-mono text-lg text-green-400">
+                                                {formatCurrency(entry.winnings)}
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
 };
 
 
