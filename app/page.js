@@ -171,7 +171,9 @@ const LiveLeaderboardDisplay = ({ liveData, poolPlayers }) => {
     // 2. Filter the live leaderboard to include only players in the pool
     // Note: We need a robust check, as names like "TYLER OAD" won't match "Scottie Scheffler".
     // For now, we rely on the owner to update the OAD slot name in the CSV to match the player's name.
-    const filteredLeaderboard = liveData.players.filter(livePlayer => {
+    const livePlayers = Array.isArray(liveData.players) ? liveData.players : []; 
+
+const filteredLeaderboard = livePlayers.filter(livePlayer => {
     // Add safety checks for player name existence
     const livePlayerName = livePlayer.name ? livePlayer.name.toUpperCase() : '';
     

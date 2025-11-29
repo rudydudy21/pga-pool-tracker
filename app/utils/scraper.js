@@ -1,10 +1,10 @@
-'use strict';
-// pga-pool-tracker/app/utils/scraper.js (New getTourStatus function)
-// --- 1. PGA TOUR STATUS SCRAPER (Using Highly Stable Source) ---
+'use strict'; 
+const ESPN_API_URL = 'https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard';
+
+// --- 1. PGA TOUR STATUS SCRAPER (ESPN Source) ---
 export async function getTourStatus() {
     try {
-        // Using a highly stable backup source for event info
-        const response = await fetch('https://datagolf-leaderboard-api.dg-dsm.com/api/v1/live_events', { 
+        const response = await fetch(ESPN_API_URL, { 
             cache: 'no-store' 
         }); 
         
@@ -13,19 +13,19 @@ export async function getTourStatus() {
         }
 
         const json = await response.json();
-        const currentEvent = json.data.find(e => e.tour_id === '4') || json.data[0]; // Tour ID 4 is PGA Tour
+        const event = json.events[0]; // ESPN usually puts the main event first
 
-        if (currentEvent) {
-            const eventName = currentEvent.event_name;
-            const eventStatus = currentEvent.event_status_description || "Pre-Round";
+        if (event && event.name) {
+            const eventName = event.name;
+            const eventStatus = event.status?.detail || "TBD";
             return `⛳ ${eventName} - Status: ${eventStatus}`;
         }
         
-        return "⛳ PGA Tour Status: No Event Currently Live.";
+        return "⛳ PGA Tour Status: No Event Found.";
 
     } catch (error) {
         console.error("Error fetching tour status:", error);
-        return "⛳ PGA Tour Status: Connection Error. (New source failed)";
+        return "⛳ PGA Tour Status: Network Unavailable.";
     }
 }
 
@@ -76,11 +76,10 @@ export async function getGolferOdds() {
     }
     // pga-pool-tracker/app/utils/scraper.js (New getTournamentLeaderboard function)
 }
-// --- 3. LIVE TOURNAMENT LEADERBOARD SCRAPER (Using Highly Stable Source) ---
+// --- 3. LIVE TOURNAMENT LEADERBOARD SCRAPER (ESPN Source) ---
 export async function getTournamentLeaderboard() {
     try {
-        // Using the same stable source for the leaderboard data
-        const response = await fetch('https://datagolf-leaderboard-api.dg-dsm.com/api/v1/leaderboard_summary', {
+        const response = await fetch(ESPN_API_URL, {
             cache: 'no-store' 
         }); 
         
@@ -89,28 +88,32 @@ export async function getTournamentLeaderboard() {
         }
 
         const json = await response.json();
-
-        // Find the current PGA Tour event leaderboard
-        const currentEvent = json.data.find(e => e.tour_id === '4') || json.data[0];
-
-        if (!currentEvent || !currentEvent.players) {
+        const event = json.events[0];
+        
+        if (!event || !event.competitions || !event.competitions[0].competitors) {
             return { 
-                tournamentName: currentEvent?.event_name || null, 
+                tournamentName: event?.name || null, 
                 players: [], 
-                status: "Data unavailable." 
+                status: event?.status?.detail || "Data unavailable." 
             };
         }
 
-        const tournamentName = currentEvent.event_name;
-        const tournamentStatus = currentEvent.event_status_description;
+        const competition = event.competitions[0];
+        const tournamentName = event.name;
+        const tournamentStatus = competition.status?.detail;
 
-        // Extract key player data (note the different JSON structure!)
-        const livePlayers = currentEvent.players.map(p => ({
-            name: p.player_name,
-            position: p.current_position,
-            score: p.total_score, 
-            money: p.money_rankings?.money_event_to_date || 0 
-        }));
+        // Extract key player data 
+        const livePlayers = competition.competitors.map(c => {
+            const player = c.athlete;
+            const score = c.linescores?.find(s => s.type === 'total') || {};
+            
+            return {
+                name: player.displayName,
+                position: c.status?.position?.id || 'TBD',
+                score: score.displayValue || 0, 
+                money: 0 // ESPN API does not easily provide money, set to 0
+            };
+        });
 
         return {
             tournamentName,
