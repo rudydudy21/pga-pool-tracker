@@ -166,22 +166,24 @@ const LiveLeaderboardDisplay = ({ liveData, poolPlayers }) => {
     }
 
     // 1. Create a simple array of all player names in the pool (Owners/Keepers/OADs)
-    const poolPlayerNames = poolPlayers.map(p => p.player.toUpperCase());
-    
-    // 2. Filter the live leaderboard to include only players in the pool
-    // Note: We need a robust check, as names like "TYLER OAD" won't match "Scottie Scheffler".
-    // For now, we rely on the owner to update the OAD slot name in the CSV to match the player's name.
-    const livePlayers = Array.isArray(liveData.players) ? liveData.players : []; 
+const livePlayers = Array.isArray(liveData.players) ? liveData.players : []; 
 
 const filteredLeaderboard = livePlayers.filter(livePlayer => {
-    // Add safety checks for player name existence
-    const livePlayerName = livePlayer.name ? livePlayer.name.toUpperCase() : '';
+    // 1. Convert live player name to a safe, uppercase string
+    const livePlayerName = (livePlayer.name ?? '').toUpperCase();
     
-    return poolPlayerNames.some(poolName => 
-        // Ensure poolName and livePlayerName are non-empty strings before using includes
-        (livePlayerName && livePlayerName.includes(poolName)) || 
-        (poolName && poolName.includes(livePlayerName))
-    );
+    // 2. Check against pool player names
+    return poolPlayerNames.some(rawPoolName => {
+        // 3. Convert pool player name to a safe, uppercase string
+        const poolName = (rawPoolName ?? '').toUpperCase();
+        
+        // Final check: Both strings must be non-empty to prevent crash if data is corrupted
+        if (!livePlayerName || !poolName) {
+            return false;
+        }
+
+        return livePlayerName.includes(poolName) || poolName.includes(livePlayerName);
+    });
 });
 
     if (filteredLeaderboard.length === 0) {

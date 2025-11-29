@@ -20,7 +20,11 @@ const OWNER_COLORS = {
 };
 
 export function getOwnerColor(ownerName) {
-    const key = ownerName.toUpperCase();
+    // Ensure ownerName is a string before calling toUpperCase()
+    if (typeof ownerName !== 'string' || ownerName.trim() === '') {
+        return OWNER_COLORS["DEFAULT"];
+    }
+    const key = ownerName.toUpperCase().trim(); // Use trim for extra safety
     return OWNER_COLORS[key] || OWNER_COLORS["DEFAULT"];
 }
 
