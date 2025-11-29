@@ -26,7 +26,10 @@ const formatCurrency = (amount) => {
 
 const LeaderboardTable = ({ title, leaderboardData, showOwners = true }) => {
     // 1. Find the maximum winnings (Base for 100% width)
-    const maxWinnings = leaderboardData.length > 0 ? leaderboardData[0].winnings : 0;
+    const validData = Array.isArray(leaderboardData) ? leaderboardData : []; 
+
+// Calculate max winnings safely
+const maxWinnings = validData.length > 0 ? validData[0].winnings : 0;
     
     // 2. Calculate the square root of the max winnings for non-linear scaling
     const maxRoot = Math.sqrt(maxWinnings);
@@ -57,7 +60,7 @@ const LeaderboardTable = ({ title, leaderboardData, showOwners = true }) => {
                     <TableHeaders isTeam={isTeamLeaderboard} />
                     
                     <tbody className="divide-y divide-gray-700">
-                        {leaderboardData.map((entry, index) => {
+                        {validData.map((entry, index) => {
                             // --- NEW SCALING LOGIC ---
                             let barWidth = 0;
                             if (maxRoot > 0) {

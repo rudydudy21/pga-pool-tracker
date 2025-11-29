@@ -3,39 +3,26 @@
 // --- 1. PGA TOUR STATUS SCRAPER ---
 export async function getTourStatus() {
     try {
-        // Switching to a reliable endpoint known to work well with Vercel/Next.js
-        const response = await fetch('https://www.pgatour.com/data/current/schedule.json', { 
-            // Crucial cache control to ensure we get fresh data
+        // Using a single, known stable source for event info
+        const response = await fetch('https://statdata.pgatour.com/r/current/message.json', { 
             cache: 'no-store' 
         }); 
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const json = await response.json();
-        
-        // The structure requires filtering the schedule to find the next event
-        const now = new Date().getTime();
-        
-        // Flatten all events and find the next one chronologically
-        const nextEvent = json.schedule.flatMap(s => s.events)
-            .find(event => new Date(event.startDate).getTime() >= now);
 
-        if (nextEvent) {
-             const startDate = new Date(nextEvent.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-             const endDate = new Date(nextEvent.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-             const status = new Date(nextEvent.startDate).getTime() <= now ? "Live Now" : "Starts";
-             
-             return `⛳ ${status}: ${nextEvent.tournamentName}, ${startDate} - ${endDate}`;
-        }
-        
-        return "⛳ PGA Tour Status: Season Complete or Schedule Pending.";
+        // Extract current event name and status
+        const eventName = json.Tournament.TournamentName || "PGA Tour Event";
+        const eventStatus = json.Message; // e.g., 'Final', 'Round 3'
+
+        return `⛳ ${eventName} - Status: ${eventStatus}`;
 
     } catch (error) {
         console.error("Error fetching tour status:", error);
-        // Return a benign error message for the user
-        return "⛳ PGA Tour Status: Error connecting to schedule source.";
+        return "⛳ PGA Tour Status: Connection Error.";
     }
 }
 
@@ -89,12 +76,11 @@ export async function getGolferOdds() {
 // --- 3. LIVE TOURNAMENT LEADERBOARD SCRAPER ---
     export async function getTournamentLeaderboard() {
     try {
-        // Using the most stable, direct leaderboard data source known to developers
-        const response = await fetch('https://lbdata.pgatour.com/leaderboard/full.json', {
-            // Crucial cache control to ensure we get fresh data
+        // Using the new stable, direct leaderboard data source
+        const response = await fetch('https://statdata.pgatour.com/r/current/leaderboard-v2.json', {
             cache: 'no-store' 
         }); 
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -104,21 +90,21 @@ export async function getGolferOdds() {
         // Check for required data
         if (!json.leaderboard || !json.leaderboard.players) {
             return { 
-                tournamentName: json.tournament?.tournamentName || null, 
+                tournamentName: json.leaderboard?.tournament_name || null, 
                 players: [], 
-                status: json.leaderboard?.roundState || "Data unavailable." 
+                status: json.leaderboard?.round_state || "Data unavailable." 
             };
         }
 
-        const tournamentName = json.tournament.tournamentName;
-        const tournamentStatus = json.leaderboard.roundState;
+        const tournamentName = json.leaderboard.tournament_name;
+        const tournamentStatus = json.leaderboard.round_state;
 
         // Extract key player data: Name, Position, Score, Money
         const livePlayers = json.leaderboard.players.map(p => ({
-            name: `${p.firstName} ${p.lastName}`,
-            position: p.currentPosition,
-            score: p.totalScore, 
-            money: p.rankings?.money || 0 
+            name: p.player_bio.full_name,
+            position: p.current_position,
+            score: p.total_score, 
+            money: p.rankings?.money_event_to_date || 0 
         }));
 
         return {
@@ -132,7 +118,7 @@ export async function getGolferOdds() {
         return { 
             tournamentName: null, 
             players: [], 
-            status: "Error fetching live tournament data. (Trying new source...)" 
+            status: "Error fetching live tournament data." 
         };
     }
 };
