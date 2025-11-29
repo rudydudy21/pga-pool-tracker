@@ -39,32 +39,43 @@ export async function processPoolData() {
         let totalPoolWinnings = 0;
         
         // 3. Process each raw data entry
-        rawData.forEach(entry => {
+    rawData.forEach(entry => {
+        // --- 1. CRITICAL MISSING LINES ---
+        const winnings = entry.WINNINGS;
         
+        // Skip entries with zero winnings or missing owner/player data
+        if (winnings === 0 || !entry.OWNER || !entry.PLAYER) return;
+
+        totalPoolWinnings += winnings;
+        const owner = entry.OWNER;
+        const player = entry.PLAYER;
+        
+        // --- 2. CRITICAL MISSING LINE ---
+        // FILTER: Check if this is an old, bracketed OAD pick
+        const isOldOAD = player.startsWith('[') || player.endsWith(']');
+
+
         // A. Calculate Owner Totals (Team Leaderboard) - FINAL FIX FOR 8 ENTRIES
         let ownerKey = owner;
         
         // CHECK 1: If the owner's name includes " OAD", strip it to group totals.
-        // This handles cases where an Owner is named 'CAM OAD' or 'TYLER OAD' in the raw data.
         if (ownerKey.toUpperCase().includes(" OAD")) {
             // Trim the " OAD" part from the key
             ownerKey = ownerKey.substring(0, ownerKey.toUpperCase().lastIndexOf(" OAD"));
         }
         
-        // CHECK 2: If the player name is an OAD placeholder, ensure we still use the correct ownerKey
-        // (This handles keepers, which already have the correct owner name)
-        
         ownerTotals[ownerKey] = (ownerTotals[ownerKey] || 0) + winnings;
+
 
         // B. Calculate Player Totals (Golfer Performance Leaderboard) - FIXED TO REMOVE OLD OAD PICKS
         // Only aggregate if it is NOT an old, bracketed OAD pick
-            if (!isOldOAD) {
-                playerTotals[player] = {
-                    winnings: (playerTotals[player]?.winnings || 0) + winnings,
-                    owner: owner
-                };
-            }
-        }); // <--- The loop closes cleanly here.
+        if (!isOldOAD) {
+            playerTotals[player] = {
+                winnings: (playerTotals[player]?.winnings || 0) + winnings,
+                owner: owner
+            };
+        }
+    }); // <--- The loop closes cleanly here.
         // The rest of the function (step 4, 5) continues below the loop... 
         // 4. Transform accumulated objects into sorted arrays for display
 
